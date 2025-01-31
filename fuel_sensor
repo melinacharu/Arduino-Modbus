@@ -1,0 +1,75 @@
+#include <ModbusMaster.h>
+
+//MAX485 connections: DE -> pin 3, RE -> pin 2, DI -> pin 1 (TX), RO -> pin 0 (RX)
+#define DE 3
+#define RE 2
+
+ModbusMaster node;
+
+void preTransmission() {
+  digitalWrite(RE, 1);
+  digitalWrite(DE, 1);
+}
+
+void postTransmission() {
+  digitalWrite(RE, 0);
+  digitalWrite(DE, 0);
+}
+
+void setup() {
+  pinMode(RE, OUTPUT);
+  pinMode(DE, OUTPUT);
+  //receive mode
+  digitalWrite(RE, 0);
+  digitalWrite(DE, 0);
+
+  //initialise serial comms
+  Serial.begin(9600);
+  //Modbus slave ID
+  node.begin(1, Serial);
+
+  Serial.println("Starting Modbus Transaction: ");
+  node.preTransmission(preTransmission);
+  node.postTransmission(postTransmission);
+}
+
+void loop() {
+  //static uint32_t i;
+  uint8_t j, result; //j -> loop counter, result -> buffer variable
+  uint16_t numRegisters = 5; //number of registers being read 
+  uint8_t data[numRegisters]; //array to store register values
+
+  //i++;
+
+  result = node.readHoldingRegisters(0, numRegisters); //first number: start register address, second number: number of registers to read
+
+  if (result == node.ku8MBSuccess) {
+    Serial.print("Holding Registers: ");
+    for (j = 0; j < numRegisters; j++) {
+      data[j] = node.getResponseBuffer(j);
+      Serial.print(data[j], HEX);
+      Serial.print(" ");
+    }
+    Serial.println("");
+    Serial.print("Decimal conversion: ");
+    for (j = 0; j < numRegisters; j++) {
+      data[j] = node.getResponseBuffer(j);
+      Serial.print(data[j], DEC);
+      Serial.print(" ");
+    }
+
+    Serial.println(" ");
+    Serial.println(" ");
+  } else {
+    //exception handling
+    Serial.print("Failed, Response Code: ");
+    Serial.print(result, HEX);
+    Serial.println("");
+    delay(1000);
+}
+  delay(1000);
+}
+
+//----Exception codes----
+//Response code E2 --> no response from the sensor
+//Response code 3 --> number of registers requested is too large
